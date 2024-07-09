@@ -1,42 +1,42 @@
 # 学习笔记
 
 ## Java相关
-- [javaSE.md](javaSE.md)
+- [javaSE.md](Java相关/javaSE.md)
 
 ## Linux
-- [Git.md](Git.md)
-- [liunx.md](liunx.md)
+- [Git.md](Linux/Git.md)
+- [liunx.md](Linux/liunx.md)
 
 ## NoSQL数据库
-- [redis.md](redis.md)
+- [redis.md](NoSQL数据库/redis.md)
 
 ## SQL数据库
-- [oracle.md](oracle.md)
+- [oracle.md](SQL数据库/oracle.md)
 
 ## SSMP框架
-- [maven.md](maven.md)
-- [mybatis.md](mybatis.md)
-- [mybatisPlus.md](mybatisPlus.md)
-- [spring.md](spring.md)
-- [springBoot.md](springBoot.md)
-- [springmvc.md](springmvc.md)
-- [ssm.md](ssm.md)
-- [xml.md](xml.md)
+- [maven.md](SSMP框架/maven.md)
+- [mybatis.md](SSMP框架/mybatis.md)
+- [mybatisPlus.md](SSMP框架/mybatisPlus.md)
+- [spring.md](SSMP框架/spring.md)
+- [springBoot.md](SSMP框架/springBoot.md)
+- [springmvc.md](SSMP框架/springmvc.md)
+- [ssm.md](SSMP框架/ssm.md)
+- [xml.md](SSMP框架/xml.md)
 
 ## Vue框架
 - [Vue.md](Vue框架/Vue.md)
 
 ## 前端
-- [Ajax.md](Ajax.md)
-- [css.md](css.md)
-- [html.md](html.md)
-- [javascript.md](javascript.md)
-- [jquery.md](jquery.md)
+- [Ajax.md](前端/Ajax.md)
+- [css.md](前端/css.md)
+- [html.md](前端/html.md)
+- [javascript.md](前端/javascript.md)
+- [jquery.md](前端/jquery.md)
 
 ## 微服务
-- [Docker.md](Docker.md)
-- [SpringCloud.md](SpringCloud.md)
-- [SpringCloudAlibaba.md](SpringCloudAlibaba.md)
+- [Docker.md](微服务/Docker.md)
+- [SpringCloud.md](微服务/SpringCloud.md)
+- [SpringCloudAlibaba.md](微服务/SpringCloudAlibaba.md)
 
 ## 项目总结
-- [cloudcap云盘.md](cloudcap云盘.md)
+- [cloudcap云盘.md](项目总结/cloudcap云盘.md)
