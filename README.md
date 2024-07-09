@@ -1,7 +1,7 @@
 # 学习笔记
 
-## Java相关
-- [javaSE.md](Java相关/javaSE.md)
+## JavaSE
+- [javaSE.md](JavaSE/javaSE.md)
 
 ## Linux
 - [Git.md](Linux/Git.md)
