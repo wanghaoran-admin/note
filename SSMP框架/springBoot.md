@@ -944,3 +944,104 @@ String filename = UUID.randomUUID().toString()+originalFilename.substring(origin
         return new Result(200,null,"获取数据成功！！");
     }
 ```
+
+
+
+
+
+
+
+# 第十四章 Swagger3使用
+
+### 1.主要功能和特点
+
+**API 文档生成**：
+
+- 自动从代码注释和注解中生成 API 文档。
+- 支持多种编程语言和框架，如 Java、Spring Boot、Node.js、Python 等。
+
+**可视化界面**：
+
+- 提供一个交互式的用户界面（Swagger UI），用户可以通过该界面查看和测试 API。
+- 支持在浏览器中直接调用 API，方便开发和调试。
+
+
+
+### 2.常用注解
+
+| 注解                                                         | 作用                       |
+| ------------------------------------------------------------ | -------------------------- |
+| @Tag(name = "支付微服务模块",description = "支付CRUD")       | 用在controller上面标注     |
+| @Operation(summary = "新增",description = "新增支付流水方法,对象作为参数") | 用在具体controller上面标注 |
+| @Schema(title = "支付id")                                    | 用在实体                   |
+
+
+
+
+
+### 3.使用
+
+**添加依赖**
+
+```xml
+ <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      	  <version>2.2.0</version>
+</dependency>
+```
+
+
+
+**编写config**
+
+```java
+package com.it.wang.config;
+
+import io.swagger.v3.oas.models.ExternalDocumentation;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import org.springdoc.core.models.GroupedOpenApi;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @Author WongSilver
+ * @Date 2024/3/12 21:55
+ * @Description <a href="http://localhost:8001/swagger-ui/index.html">Swagger3管理页面</a>
+ */
+@Configuration
+public class Swagger3Config {
+
+    @Bean
+    public GroupedOpenApi payApi() {
+        return GroupedOpenApi.builder().group("支付微服务模块").pathsToMatch("/pay/**").build();
+    }
+
+    @Bean
+    public GroupedOpenApi otherApi() {
+        return GroupedOpenApi.builder().group("其他微服务模块").pathsToMatch("/other/**").build();
+    }
+
+    @Bean
+    public OpenAPI docsOpenApi() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("spring-cloud")
+                        .description("通用设计")
+                        .version("v1.0")
+                )
+                .externalDocs(new ExternalDocumentation()
+                        .description("")
+                        .url("")
+                );
+    }
+}
+```
+
+
+
+访问：http://localhost:8080/swagger-ui/index.html
+
+
+
