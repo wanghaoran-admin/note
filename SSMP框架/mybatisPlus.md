@@ -632,3 +632,84 @@ public class MyBatisPlusConfig {
 
 
 
+
+
+
+
+
+
+# 第五章 时间处理器
+
+### 1.实体属性配置
+
+```java
+@TableField(fill = FieldFill.INSERT)
+private Date createTime;
+```
+
+
+
+### 2.创建处理器
+
+```java
+package com.it.wang.Handle;
+
+import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.stereotype.Component;
+import java.time.LocalDateTime;
+import java.util.Date;
+
+@Component
+public class DateHandler implements MetaObjectHandler {
+
+    @Override
+    public void insertFill(MetaObject metaObject) {
+        //这里createTime和实体属性对应
+        this.setFieldValByName("createTime", new Date(), metaObject);
+        this.setFieldValByName("updateTime", new Date(), metaObject);
+    }
+
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        this.setFieldValByName("updateTime", new Date(), metaObject);
+    }
+
+}
+
+```
+
+
+
+
+
+
+
+# 第六章 逻辑删除
+
+### 1.配置yml
+
+```yml
+# mybatis-plus相关配置
+mybatis-plus:
+  # 全局配置
+  global-config:
+    db-config:
+      # 全局逻辑删除的字段名
+      logic-delete-field: deleted 
+      # 逻辑已删除值(默认为 1)
+      logic-delete-value: 1
+      # 逻辑未删除值(默认为 0)
+      logic-not-delete-value: 0
+```
+
+
+
+
+
+### 2.实体配置
+
+```java
+@TableLogic
+private Integer deleted;
+```
