@@ -171,4 +171,55 @@ System.out.println("Content-Type: " + contentType);
 
 
 
-# 第三章 
+# 第三章 consul服务注册与发现
+
+### 1.Consul 的主要功能
+
+**服务注册与发现**：自动化服务注册，允许服务发现和负载均衡。
+
+**健康检查**：定期检查服务的健康状态，确保服务的可用性。
+
+**KV 存储**：分布式键值存储，可以存储配置和其他共享数据。
+
+**服务网格**：通过代理提供服务间的安全通信、负载均衡和策略控制。
+
+
+
+### 2.心跳检查
+
+**监测服务健康状态**: 通过心跳检查，服务注册中心可以知道每个服务的运行状况。如果服务出现故障或者停止响应，注册中心可以及时发现，并进行相应的处理，如通知运维人员或者自动触发故障转移。
+
+
+
+**服务发现与负载均衡**: 心跳检查的结果也用于服务发现，客户端可以向注册中心查询健康的服务实例，并将请求分发给这些健康的实例，实现负载均衡。
+
+
+
+**自动治理和自愈**: 在微服务架构中，心跳检查是自动治理的基础。通过心跳检查，系统可以实现自动发现、自动注册、自动调整和自动恢复，提高系统的稳定性和可靠性。
+
+
+
+### 3.使用
+
+```xml
+<!--    consul依赖-->
+		<dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>commons-logging</groupId>-->
+<!--                    <artifactId>commons-logging</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+        </dependency>
+
+<!--    心跳检查依赖-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+```
+
+
+
