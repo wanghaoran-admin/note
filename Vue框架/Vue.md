@@ -958,3 +958,45 @@ https://www.iconfont.cn/?spm=a313x.search_index.i3.2.4f863a81dhE331
 
 根据下载包中的示例进行操作
 
+
+
+
+
+# 第十二章 父组件向子组件传递数据
+
+### 父组件
+
+```vue
+<template>
+    <div>
+      <h2>父组件</h2>
+      <ChildComponent :shu="shu" /> 
+    </div>
+</template>
+  
+<script setup>
+  import ChildComponent from './ChildComponent.vue';
+  const shu = "这是父组件的数据";
+</script>
+```
+
+
+
+### 子组件
+
+```vue
+<template>
+    <div>
+      <h3>子组件</h3>
+      <p>{{ shu }}</p>
+    </div>
+</template>
+  
+<script setup>
+    // 在子组件中声明 props
+    const props = defineProps({
+        shu: String // 假设 shu 是字符串类型的数据
+    });
+</script>
+```
+
