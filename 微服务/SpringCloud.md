@@ -179,7 +179,7 @@ System.out.println("Content-Type: " + contentType);
 
 **健康检查**：定期检查服务的健康状态，确保服务的可用性。
 
-**KV 存储**：分布式键值存储，可以存储配置和其他共享数据。
+**配置中心**：分布式键值存储，可以存储配置和其他共享数据。
 
 **服务网格**：通过代理提供服务间的安全通信、负载均衡和策略控制。
 
@@ -222,4 +222,321 @@ System.out.println("Content-Type: " + contentType);
 ```
 
 
+
+### 4.application和bootstarp
+
+**加载顺序**：
+
+`bootstrap.properties`：在应用程序上下文刷新之前加载。它主要用于在应用程序启动时初始化更早的配置，如配置中心客户端的配置。
+
+`application.properties`：在`bootstrap.properties`之后加载，主要用于应用程序的常规配置。
+
+
+
+
+
+### 5.服务发现与注册
+
+#### 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+    <exclusions>
+        <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+```
+
+
+
+#### **配置yml**
+
+```yml
+spring:
+  application:
+    name: cloud-cunsumer-order
+  cloud:
+    consul:
+      port: 8500  #consul的端口
+      host: localhost  #consul的地址
+      discovery:  #配置发现与注册
+        serviceName: ${spring.application.name}
+        prefer-ip-address: true #优先使用服务ip进行注册
+```
+
+
+
+#### **启动类配置**
+
+```java
+@SpringBootApplication
+@EnableDiscoveryClient  //启动服务注册于发现
+public class main80 {
+    public static void main(String[] args) {
+        SpringApplication.run(main80.class,args);
+    }
+}
+```
+
+
+
+#### 修改url
+
+```java
+//直接使用consul注册的服务名
+public static final String PAYMENT_URL = "http://cloud-payment-service";
+```
+
+
+
+#### 配置负载均衡
+
+```java
+@Configuration
+public class RestTemplateConfig {
+
+    //负载均衡
+    @LoadBalanced
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+}
+```
+
+
+
+#### 负载均衡说明
+
+**介绍：**`@LoadBalanced` 注解用于Spring Cloud中的负载均衡配置，它通常应用在`RestTemplate`的Bean定义上，以启用客户端负载均衡功能
+
+
+
+**作用：**
+
+在微服务架构中，服务之间的通信通常是通过HTTP请求完成的。一个服务可能需要调用另一个服务的API来完成某些业务逻辑。这时，如果被调用的服务有多个实例（为了高可用性和扩展性），就需要一种机制来决定具体调用哪个实例。这就是负载均衡的作用。
+
+
+
+
+
+### 6.配置中心
+
+#### 添加依赖
+
+```xml
+<!-- consul 配置中心 -->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-consul-config</artifactId>
+</dependency>
+
+<!-- consul 发现与注册 -->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+    <exclusions>
+        <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+```
+
+
+
+#### 创建bootstarp.yml
+
+```yml
+spring:
+  application:
+    name: cloud-payment-service #配置中心会以cloud-payment-service开头进行查找
+    						  #比如配置中心有cloud-payment-service-dev这个配置时
+    						  #application.yml中就能进行以下配置
+    						  
+    						  #profiles:
+    						  # active: dev
+  cloud:
+    consul:
+      discovery:
+        serviceName: ${spring.application.name}
+      port: 8500
+      host: localhost
+      config:
+        enabled: true  #启动配置中心
+        profile-separator: '-' #文件配置，修改成-
+        format: YAML  #文件格式
+```
+
+
+
+#### 使用
+
+```java
+//使用el表单式进行注入
+//这里的wang是data中yml里面的数据
+@GetMapping("Test")
+public void Test(@Value("${wang.value}") String value){
+    System.out.println(value);
+}
+```
+
+
+
+
+
+### 7.动态刷新
+
+#### 方式1：添加注解
+
+```java
+@SpringBootApplication
+@RefreshScope  //动态刷新
+@MapperScan("com.it.wang.mapper")
+@EnableDiscoveryClient
+public class Main8001 {
+    public static void main(String[] args) {
+        SpringApplication.run(Main8001.class,args);
+    }
+}
+```
+
+
+
+#### 方式2：配置yml文件
+
+```yml
+config:
+  enabled: true
+  profile-separator: '-'
+  format: YAML
+  watch:
+    wait-time: 1 #一秒刷新一次
+```
+
+
+
+
+
+# 第四章 LoadBalancer负载均衡
+
+### 1.介绍
+
+负载均衡（Load Balancing）是指在计算机网络中，将工作负载（如请求、数据流量等）分布到多个服务器或其他计算资源上，以达到更好的资源利用、最大化吞吐量、最小化响应时间和避免单点故障的目的。
+
+
+
+### 2.负载均衡策略
+
+
+
+**轮询（Round Robin）【默认】**：按顺序将请求依次分配给每个服务器，适用于服务器性能相近的场景。
+
+```java
+算法：总请求次数%集群数量=对应分配的服务器
+```
+
+
+
+**随机（Random）**：随机选择一个服务器来处理每个新请求。
+
+
+
+
+
+
+
+### 3.轮询策略
+
+#### 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+</dependency>
+
+<!-- consul config -->
+<dependency>
+     <groupId>org.springframework.cloud</groupId>
+     <artifactId>spring-cloud-starter-consul-config</artifactId>
+</dependency>
+<!-- consul discovery -->
+<dependency>
+     <groupId>org.springframework.cloud</groupId>
+     <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+     <exclusions>
+       <exclusion>
+           <groupId>commons-logging</groupId>
+           <artifactId>commons-logging</artifactId>
+       </exclusion>
+  	</exclusions>
+</dependency>
+```
+
+
+
+#### RestTemplate的配置
+
+```java
+@Configuration
+public class RestTemplateConfig {
+    /**
+    	* 在进行微服务内部调用时
+    	* 进行负载均衡
+    	*/
+    @LoadBalanced
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+}
+```
+
+
+
+#### 控制器的配置
+
+```java
+@RestController
+@RequestMapping("/consumer")
+public class OrderController {
+    @Autowired
+    private RestTemplate restTemplate;
+
+    //这里要确保路径是被consul注册的，这样在进行内部访问的时候才能进行负载均衡
+    public static final String PAYMENT_URL = "http://cloud-payment-service";
+```
+
+
+
+### 4.随机策略
+
+```java
+@Configuration
+@LoadBalancerClient(value = "cloud-payment-service",configuration = RestTemplateConfig.class)
+public class RestTemplateConfig {
+    //负载均衡
+    @LoadBalanced
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+     
+    @Bean
+    ReactorLoadBalancer<ServiceInstance> randomLoadBalancer(Environment environment,
+                                                            LoadBalancerClientFactory loadBalancerClientFactory) {
+        String name = environment.getProperty(LoadBalancerClientFactory.PROPERTY_NAME);
+        return new RandomLoadBalancer(loadBalancerClientFactory
+                .getLazyProvider(name, ServiceInstanceListSupplier.class),
+                name);
+    }
+}
+```
 
