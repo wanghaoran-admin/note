@@ -428,7 +428,7 @@ config:
 
 ### 1.介绍
 
-负载均衡（Load Balancing）是指在计算机网络中，将工作负载（如请求、数据流量等）分布到多个服务器或其他计算资源上，以达到更好的资源利用、最大化吞吐量、最小化响应时间和避免单点故障的目的。
+LoadBalancer（负载均衡器）是分布式系统中的一个重要组件，用于在多个服务器或服务实例之间分配工作负载，以提高系统的性能和可靠性【客户端】。
 
 
 
@@ -539,4 +539,285 @@ public class RestTemplateConfig {
     }
 }
 ```
+
+
+
+
+
+
+
+# 第五章 OpenFeign微服务通信
+
+### 1.介绍
+
+OpenFeign 是一个声明式的 HTTP 客户端，用于简化和标准化微服务之间的通信。它允许开发者通过简单的接口声明和注解配置，与远程 HTTP 服务进行交互，而不需要手动编写 HTTP 请求的相关代码【比如restTemplate】。
+
+
+
+### 2.基本用法
+
+#### 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+```
+
+
+
+#### 启用 Feign 客户端
+
+在你的 Spring Boot 应用程序的主类上添加 `@EnableFeignClients` 注解
+
+```java
+@SpringBootApplication
+@EnableFeignClients
+public class FeignClientApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(FeignClientApplication.class, args);
+    }
+}
+```
+
+
+
+#### 定义 Feign 接口
+
+使用 `@FeignClient` 注解定义一个接口来表示远程服务
+
+```java
+@FeignClient(name = "user-service") //这里必须是注册到consul中的服务名
+public interface UserClient {
+    @GetMapping("/users/{id}") //这里的路径要和user-service中controller的路径一致
+    User getUserById(@PathVariable("id") Long id);
+}
+```
+
+
+
+### 3.高级特性
+
+#### 配置超时
+
+```yml
+spring:
+  application:
+    name: cloud-cunsumer-openfeign-order
+  cloud:
+    consul:
+      port: 8500
+      host: localhost
+      discovery:
+        serviceName: ${spring.application.name}
+        prefer-ip-address: true #优先使用服务ip进行注册
+    openfeign:
+      client:
+        config:
+         #cloud-payment-service:  单独配置服务  
+          default: #这里配置全部服务
+           #连接超时时间
+           connectTimeout: 3000
+           # 读取超时时间
+           readTimeout: 3000
+```
+
+
+
+#### 负载均衡
+
+Feign 与 LoadBalancer集成，可以实现客户端负载均衡。在 `@FeignClient` 注解中指定服务名称，Feign 会自动从注册中心获取服务实例并进行负载均衡。
+
+
+
+
+
+
+
+#### 重试机制
+
+在 Spring Cloud OpenFeign 中，可以通过配置重试机制来增强微服务间通信的可靠性。
+
+```java
+@Configuration
+public class FeignConfig {
+    // 重试机制
+    @Bean
+    public Retryer myRetryer() {
+	   // return new Retryer.Default();
+        // 初次间隔 最大间隔 最大请求次数(1+2) = 3
+        return new Retryer.Default(100, 1, 3);
+    }
+}
+```
+
+
+
+#### 性能优化
+
+HttpClient5替换默认的HttpURLConnection
+
+```xml
+ 	   <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-hc5</artifactId>
+            <version>13.1</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.3</version>
+        </dependency>
+```
+
+
+
+```yml
+spring:
+  application:
+    name: cloud-cunsumer-openfeign-order
+  cloud:
+    consul:
+      port: 8500
+      host: localhost
+      discovery:
+        serviceName: ${spring.application.name}
+        prefer-ip-address: true
+    openfeign:
+    	 #这里进行配置HttpClient5
+      httpclient:
+        hc5:
+          enabled: true
+      client:
+        config:
+          default:
+           connectTimeout: 3000
+           readTimeout: 3000
+```
+
+
+
+
+
+#### 请求回应压缩
+
+```yml
+spring:
+  application:
+    name: cloud-cunsumer-openfeign-order
+  cloud:
+    consul:
+      port: 8500
+      host: localhost
+      discovery:
+        serviceName: ${spring.application.name}
+        prefer-ip-address: true 
+    openfeign:
+    	 #这里配置请求回应压缩
+      compression:
+        request: #配置请求
+          enabled: false
+          min-request-size: 2048 #最小触发压缩大小
+          mime-types: text/xml,application/xml,application/json #触发压缩的类型
+        response: #配置响应
+          enabled: false
+```
+
+
+
+
+
+
+
+#### 日志开启
+
+```yml
+logging:
+  level:
+    com:
+      it:
+        wang:
+          apis:
+            PayFeignApi: debug
+```
+
+
+
+**-------------------------日志级别-------------------------**
+
+**TRACE**：最细粒度的信息，主要用于开发过程中记录详细的应用行为。
+
+**DEBUG**：比 TRACE 粒度稍粗，通常用于调试信息。
+
+**INFO**：常规的消息，例如启动、关闭、配置等信息。
+
+**WARN**：警告信息，表示有潜在问题，但不会影响应用的正常运行。
+
+**ERROR**：错误信息，表示发生了问题，可能会影响应用的正常运行。
+
+**FATAL**：严重错误，表示发生了严重的问题，应用可能无法继续运行（在某些日志框架中会使用）。
+
+**OFF**：关闭日志输出。
+
+
+
+
+
+
+
+# 第六章 Resilience4j 短路器
+
+### 1.Circuit breaker和Resilience4j 的关系
+
+Circuit Breaker（熔断器）是一种设计模式，用于检测系统的运行状态，并在检测到错误或失败时进行保护，防止错误扩散，提升系统的稳定性和容错性。
+
+Resilience4j 是一个实现了这一设计模式
+
+
+
+### 2.熔断器三种状态
+
+**关闭 (Closed)**：所有请求正常通过。如果失败率超过设定的阈值，熔断器将进入打开状态。
+
+**打开 (Open)**：所有请求立即失败，执行备用逻辑，经过一段时间后，熔断器进入半开状态。
+
+**半开 (Half-Open)**：部分请求被允许通过。如果这些请求成功，熔断器将重新进入关闭状态；如果失败，熔断器将重新进入打开状态。
+
+
+
+### 3.基于次数配置断路器
+
+```yml
+# 基于次数配置
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50 # 调用失败达到50%后打开断路器
+        sliding-window-type: count_based # 滑动窗口类型
+        sliding-window-size: 6 # 滑动窗口大小 count_based6个请求 time_base6秒
+        minimum-number-of-calls: 6 # 每个滑动窗口的周期，必须6个请求才会进行计算
+        automatic-transition-from-open-to-half-open-enabled: true # 开始过度到半开状态
+        wait-duration-in-open-state: 5s # 从开启到半开启需要5s
+        permitted-number-of-calls-in-half-open-state: 2 #半开状态允许通过的最大请求数
+        record-exceptions:
+          - java.lang.Exception
+    instances: #配置特定服务实例
+      cloud-payment-service: #这是一个服务实例的名称
+        base-config: default #指定断路器配置，即configs下面的default
+        
+#说明：这里接受6个请求，失败率达到50%后打开断路器，必须达到6个请求才会进行计算
+#     开始过度到半开状态开启，如果开启后5秒内会进入半启动，半开状态中会接受2个请求
+#	 如果失败率达到50%会进行开启短路，否则断开所有请求都能进入
+```
+
+
+
+
+
+
+
+
 
