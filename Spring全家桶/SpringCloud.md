@@ -633,7 +633,33 @@ spring:
 
 Feign 与 LoadBalancer集成，可以实现客户端负载均衡。在 `@FeignClient` 注解中指定服务名称，Feign 会自动从注册中心获取服务实例并进行负载均衡。
 
+```java
+@FeignClient("cloud-payment-service")
+public interface PayFeignApi {
+    @PostMapping("/pay/add")
+    Result<Integer> add(@RequestBody PayDTO pay);
 
+    @DeleteMapping("/pay/delete/{id}")
+    Result<Integer> delete(@PathVariable("id") Integer id);
+
+    @PutMapping("/pay/update")
+    Result<Integer> updatePay(@RequestBody PayDTO payDTO);
+
+    @GetMapping("/pay/getAll")
+    Result<List<PayDTO>> getAll();
+
+    @GetMapping("/pay/getById/{id}")
+    Result<PayDTO> getById(@PathVariable("id") Integer id);
+
+    @GetMapping("/pay/Test")
+    Result<Integer> Test();
+
+    @GetMapping("/pay/circuit/{id}")
+    String myCircuit(@PathVariable("id") Integer id);
+
+    @GetMapping("/pay/rateLimit/{id}")
+    String myRateLimit(@PathVariable("id") Integer id);
+```
 
 
 
@@ -1177,3 +1203,108 @@ Route（路由）
 Predicate（谓词）
 
 Filter（过滤器）	
+
+
+
+### 3.入门案例
+
+#### 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-gateway</artifactId>
+</dependency>
+
+<!--    consul依赖-->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+</dependency>
+
+<!--    心跳检查依赖-->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+使用gateway必须使用服务注册，这里使用的是consul
+
+
+
+
+
+#### 网关配置
+
+```yml
+server:
+  port: 9527
+
+spring:
+  application:
+    name: cloud-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848 # nacos地址
+    gateway:
+      routes:
+        - id: pay_routh1 #路由id,类似与mysql主键没有固定规则但是唯一,一般是服务名
+          uri: http://localhost:8001  #路由地址
+          predicates:
+            - Path=/feign/gateway/pay/get/**  #路径匹配的进行断言
+
+        - id: pay_routh2 #路由id,类似与mysql主键没有固定规则但是唯一,一般是服务名
+          uri: http://localhost:8001  #路由地址
+          predicates:
+            - Path=/feign/gateway/pay/getInfo/**  #路径匹配的进行断言
+```
+
+
+
+
+
+#### 修改feignApi
+
+```java
+@FeignClient("cloud-gateway")
+public interface PayFeignApi {
+```
+
+这是使用网关的服务
+
+
+
+
+
+#### 运行
+
+访问这个路径
+
+```
+http://localhost/feign/gateway/pay/getInfo
+```
+
+
+
+启动网关能够获取结果
+
+没启动会报503（服务器暂时无法处理客户端的请求）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
