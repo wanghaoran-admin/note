@@ -24,7 +24,9 @@
   
 
 ## JavaSE
-- [javaSE.md](JavaSE/javaSE.md)
+- [javaSE.md](javaSE/javaSE.md)
+- [stream流.md](javaSE/stream流.md)
+- [xml.md](javaSE/xml.md)
 
 
 ## 项目总结
