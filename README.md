@@ -1,7 +1,7 @@
 # 学习笔记
 
 ## Git Maven
-- [Git.md](Git/Git.md)
+- [Git.md](Git.md)
 - [Maven.md](Maven/Maven.md)
 
 
