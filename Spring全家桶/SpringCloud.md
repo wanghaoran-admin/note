@@ -1198,9 +1198,9 @@ management:
 
 ### 2.Gateway核心组件
 
-Route（路由）
+Route（路由）：满足谓词【断言】后的跳转路径
 
-Predicate（谓词）
+Predicate（谓词）：路径匹配
 
 Filter（过滤器）	
 
@@ -1256,10 +1256,15 @@ spring:
             - Path=/feign/gateway/pay/get/**  #路径匹配的进行断言
 
         - id: pay_routh2 #路由id,类似与mysql主键没有固定规则但是唯一,一般是服务名
-          uri: http://localhost:8001  #路由地址
+          #uri: http://localhost:8001  #路由地址
+           uri: lb://cloud-payment-service  #地址一般是服务名能够负载均衡，也就是动态路由
           predicates:
             - Path=/feign/gateway/pay/getInfo/**  #路径匹配的进行断言
 ```
+
+【这里的】predicates断言满足就会跳转到  uri: http://localhost:8001中去  
+
+
 
 
 
@@ -1268,7 +1273,7 @@ spring:
 #### 修改feignApi
 
 ```java
-@FeignClient("cloud-gateway")
+@FeignClient("cloud-gateway") //这里的意思是如果想访问必须先找网关，断言通过后才能进行访问
 public interface PayFeignApi {
 ```
 
@@ -1295,6 +1300,8 @@ http://localhost/feign/gateway/pay/getInfo
 
 
 
+
+### 4.高级特性
 
 
 
