@@ -4,13 +4,13 @@
 - [Git.md](Git Maven/Git.md)
 - [Maven.md](Git Maven/Maven.md)
 
+## Linux
+- [Linux.md](Linux/Linux讲义.pdf)
+- [liunx.md](Linux/liunx.md)
 
 ## JavaSE
 - [javaSE.md](JavaSE/javaSE.md)
 
-## Linux
-- [Git.md](Linux/Git.md)
-- [liunx.md](Linux/liunx.md)
 
 ## NoSQL数据库
 - [redis.md](NoSQL数据库/redis.md)
