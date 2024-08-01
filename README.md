@@ -2,7 +2,7 @@
 
 ## Git Maven
 - [Git.md](Git%20Maven/Git.md)
-- [Maven.md](Git%20Maven/Maven.md)
+- [Maven.md](Git%20Maven/maven.md)
 
 ## Linux
 - [Linux讲义.pdf](Linux/Linux讲义.pdf)
