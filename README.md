@@ -1,8 +1,8 @@
 # 学习笔记
 
 ## Git Maven
-- [Git.md](Git.md)
-- [Maven.md](Maven/Maven.md)
+- [Git.md](Git Maven/Git.md)
+- [Maven.md](Git Maven/Maven.md)
 
 
 ## JavaSE
