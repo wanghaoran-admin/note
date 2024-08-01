@@ -1,8 +1,8 @@
 # 学习笔记
 
 ## Git Maven
-- [Git.md](Git Maven/Git.md)
-- [Maven.md](Git Maven/Maven.md)
+- [Git.md](GitMaven/Git.md)
+- [Maven.md](GitMaven/Maven.md)
 
 ## Linux
 - [Linux讲义.pdf](Linux/Linux讲义.pdf)
