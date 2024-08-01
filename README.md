@@ -5,7 +5,7 @@
 - [Maven.md](Git Maven/Maven.md)
 
 ## Linux
-- [Linux.md](Linux/Linux讲义.pdf)
+- [Linux讲义.pdf](Linux/Linux讲义.pdf)
 - [liunx.md](Linux/liunx.md)
 
 ## JavaSE
