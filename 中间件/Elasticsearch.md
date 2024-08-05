@@ -66,7 +66,7 @@ Elasticsearch 将索引分为多个分片，每个分片都有一个或多个备
 
 ### 4.入门【增删改查】
 
-#### 配置类
+#### 创建索引
 
 ```java
 @Repository
@@ -123,6 +123,8 @@ public class CourseRepository {
 }
 ```
 
+查询索引库下所有的数据： 【http://localhost:9200/wf_course/_search】 
+
 
 
 
@@ -155,7 +157,37 @@ public void add(Subjects subjects) throws Exception {
 }
 ```
 
+新增完后能够使用这个进行查看：【http://localhost:9200/wf_course/_search】 
 
+
+
+
+
+
+
+#### 查询全部
+
+```java
+public void searchAll() throws Exception {
+    //创建索引请求
+    SearchRequest searchRequest = new SearchRequest("wf_course");
+    //设置类型
+    searchRequest.types("doc");
+    //进行索引源的构建
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+    //构建搜索请求的类。它允许你设置查询、分页、排序等。
+    searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+    searchRequest.source(searchSourceBuilder);
+
+    //执行
+    SearchResponse search = client.search(searchRequest, RequestOptions.DEFAULT);
+    //返回的数据
+    System.out.println(search);
+}
+```
+
+【这里是使用java的代码进行查询索引库中的数据】
 
 
 
@@ -183,6 +215,12 @@ public void getById(Integer id) throws Exception {
     System.out.println(sourceAsMap);
 }
 ```
+
+【这里是使用java的代码进行查询索引库中的数据】
+
+
+
+
 
 
 
@@ -242,4 +280,106 @@ public void updateDoc(Subjects subjects) throws Exception {
 ```
 
 
+
+
+
+### 5.多种查询
+
+#### -----------修改此代码-----------
+
+```java
+public void searchAll() throws Exception {
+    //创建索引请求
+    SearchRequest searchRequest = new SearchRequest("wf_course");
+    //设置类型
+    searchRequest.types("doc");
+    //进行索引源的构建
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+    //构建搜索请求的类。它允许你设置查询、分页、排序等。
+    searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+    //-----------------------------------------------------------------
+     
+     
+    //-----------------------------------------------------------------
+    searchRequest.source(searchSourceBuilder);
+     
+    //执行
+    SearchResponse search = client.search(searchRequest, RequestOptions.DEFAULT);
+    //返回的数据
+    System.out.println(search);
+}
+```
+
+【条件查询需要修改---------------中的代码】
+
+
+
+
+
+#### 精确查
+
+```java
+//进行精确查询										  字段名	  字段数据
+TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("studymodel","201002");
+searchSourceBuilder.query(termQueryBuilder);
+```
+
+
+
+
+
+#### 分词查询
+
+```java
+//设置分词查询											字段名 		 字段数据
+MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("description", "spring cloud");
+//这里有and、or如果是and意思就是spring cloud 的分词必须全部都要满足
+//例：spring cloud分词spring和cloud,要查找的数据必须同时有spring 和 cloud两个单词
+matchQueryBuilder.operator(Operator.AND); 
+
+//配置比例：如果spring 和 cloud两个单词的比例高达80%，就会筛选出来
+matchQueryBuilder.minimumShouldMatch("80%"); 
+searchSourceBuilder.query(matchQueryBuilder);
+```
+
+
+
+
+
+#### 组合查询
+
+```java
+ //组合查询
+BoolQueryBuilder builder = QueryBuilders.boolQuery().mustNot(QueryBuilders.termQuery("name", "spring cloud实战"));
+           .must(QueryBuilders.termQuery("name", "spring"))
+           .must(QueryBuilders.termQuery("studymodel", "201001"))
+           .should(QueryBuilders.termQuery("studymodel", "201001"));
+```
+
+**must**：
+
+​		用于指定必须满足的条件 相当于逻辑与 (`AND`)。
+
+
+
+**should**：
+
+​		文档如果满足 `should` 子句中的一个或多个条件，则文档将被匹配
+
+​		`should` 子句相当于逻辑或 (`OR`)
+
+​		满足更多 `should` 子句的文档会有更高的相关性得分。
+
+
+
+**must_not**：
+
+​		`must_not` 子句用于指定必须不满足的条件。
+
+​		相当于逻辑非 (`NOT`)。
+
+
+
+#### 一组值查询
 
