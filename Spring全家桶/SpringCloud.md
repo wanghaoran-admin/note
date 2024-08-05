@@ -1245,9 +1245,11 @@ spring:
   application:
     name: cloud-gateway
   cloud:
-    nacos:
+    consul:
       discovery:
-        server-addr: localhost:8848 # nacos地址
+        serviceName: ${spring.application.name}
+      port: 8500
+      host: localhost
     gateway:
       routes:
         - id: pay_routh1 #路由id,类似与mysql主键没有固定规则但是唯一,一般是服务名
@@ -1303,7 +1305,7 @@ http://localhost/feign/gateway/pay/getInfo
 
 ### 4.高级特性
 
-
+#### Predicate（断言）
 
 
 
