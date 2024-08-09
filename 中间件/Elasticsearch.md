@@ -383,3 +383,51 @@ BoolQueryBuilder builder = QueryBuilders.boolQuery().mustNot(QueryBuilders.termQ
 
 #### 一组值查询
 
+
+
+
+
+
+
+
+
+### 6.配置使用
+
+```java
+@Configuration
+public class ElasticsearchConfig {
+
+    @Value("${myelasticsearch.host}")
+    private String host;
+    @Value("${myelasticsearch.port}")
+    private Integer port;
+
+    @Bean
+    public RestHighLevelClient client() {
+        HttpHost httpHost = new HttpHost(host, port, "http");
+        return new RestHighLevelClient(RestClient.builder(httpHost));
+    }
+}
+```
+
+
+
+```yml
+myelasticsearch:
+  host: 127.0.0.1
+  port: 9200
+```
+
+
+
+```java
+@Autowired
+private RestHighLevelClient client;
+```
+
+
+
+
+
+
+
