@@ -304,7 +304,7 @@ SHOW RETENTION POLICIES ON <database_name>
 
 
 
-##### **创建保5留策略**
+##### **创建保留策略**
 
 ```
 CREATE RETENTION POLICY <policy_name> ON <database_name> DURATION <duration> REPLICATION <replication> DEFAULT
@@ -313,8 +313,6 @@ CREATE RETENTION POLICY <policy_name> ON <database_name> DURATION <duration> REP
 例如：
 
 ```
-sql
-复制代码
 CREATE RETENTION POLICY "one_day" ON "mydb" DURATION 1d REPLICATION 1 DEFAULT
 ```
 
@@ -323,7 +321,5 @@ CREATE RETENTION POLICY "one_day" ON "mydb" DURATION 1d REPLICATION 1 DEFAULT
 ##### **删除保留策略**
 
 ```
-sql
-复制代码
 DROP RETENTION POLICY <policy_name> ON <database_name>
 ```
