@@ -286,36 +286,44 @@ DROP USER <username>
 DROP USER admin
 ```
 
+
+
+
+
+
+
+
+
 ### 8. **管理保留策略（Retention Policy）**
 
-- **显示所有保留策略**：
+##### **显示所有保留策略**
 
-	```
-	sql
-	复制代码
-	SHOW RETENTION POLICIES ON <database_name>
-	```
+```
+SHOW RETENTION POLICIES ON <database_name>
+```
 
-- **创建保留策略**：
 
-	```
-	sql
-	复制代码
-	CREATE RETENTION POLICY <policy_name> ON <database_name> DURATION <duration> REPLICATION <replication> DEFAULT
-	```
 
-	例如：
+##### **创建保5留策略**
 
-	```
-	sql
-	复制代码
-	CREATE RETENTION POLICY "one_day" ON "mydb" DURATION 1d REPLICATION 1 DEFAULT
-	```
+```
+CREATE RETENTION POLICY <policy_name> ON <database_name> DURATION <duration> REPLICATION <replication> DEFAULT
+```
 
-- **删除保留策略**：
+例如：
 
-	```
-	sql
-	复制代码
-	DROP RETENTION POLICY <policy_name> ON <database_name>
-	```
+```
+sql
+复制代码
+CREATE RETENTION POLICY "one_day" ON "mydb" DURATION 1d REPLICATION 1 DEFAULT
+```
+
+
+
+##### **删除保留策略**
+
+```
+sql
+复制代码
+DROP RETENTION POLICY <policy_name> ON <database_name>
+```
