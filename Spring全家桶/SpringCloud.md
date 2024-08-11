@@ -1295,9 +1295,198 @@ http://localhost/feign/gateway/pay/getInfo
 
 
 
-### 4.高级特性
 
-#### Predicate（断言）
+
+### 4.Predicate（谓词）
+
+#### 配置
+
+```yml
+spring:
+  application:
+    name: cloud-gateway
+  cloud:
+    consul:
+      discovery:
+        serviceName: ${spring.application.name}
+      port: 8500
+      host: localhost
+    gateway:
+      routes:
+        - id: pay_routh1 #路由id,类似与mysql主键没有固定规则但是唯一,一般是服务名
+          uri: http://localhost:8001  #路由地址
+          predicates:
+            - Path=/feign/gateway/pay/get/**  #路径匹配的进行断言
+            - Custom=ccc #自定义谓词 
+#            - After=2024-08-05T20:31:19.207227200+08:00[Asia/Shanghai] #在指定时间之后路由
+#            - Between=2024-08-05T20:31:19.207227200+08:00[Asia/Shanghai],2024-08-05T20:36:19.207227200+08:00[Asia/Shanghai]#在指定时间路由
+#            - Cookie=username,zzyy #cookie中携带指定数据
+#            - Header=X-Request-Id, \d+ #请求头要有X-Request-Id属性并且为整数的正则表达式
+#            - Query=username, \d+ #要有参数username并且为整数才能路由
+#            - Host=**.it.com #请求中必须带着主机
+#            - Method=GET,POST #配置请求方法
+#            - RemoteAddr=192.168.124.1/24 #外部访问我的ip限制，最大不超过32目前是1·24他们是CIDR表示法
+```
+
+
+
+
+
+#### 自定义Predicate
+
+```java
+/** 自定义会员等级
+ * @Author WongSilver
+ * @Date 2024/3/20 14:47
+ * @Description
+ */
+@Component	//这里开头Custom结尾必须是RoutePredicateFactory
+public class CustomRoutePredicateFactory extends AbstractRoutePredicateFactory<CustomRoutePredicateFactory.Config> {
+
+
+    public CustomRoutePredicateFactory() {
+        super(CustomRoutePredicateFactory.Config.class);
+    }
+
+    //配置紧凑语法
+    public List<String> shortcutFieldOrder() {
+        return Collections.singletonList("userType");
+    }
+
+    //获取参数userType和yml中的进行比较
+    @Override
+    public Predicate<ServerWebExchange> apply(CustomRoutePredicateFactory.Config config) {
+        return serverWebExchange -> {
+            String userLevel = serverWebExchange.getRequest().getQueryParams().getFirst("userType");
+            if (userLevel == null) {
+                return false;
+            }
+            return userLevel.equalsIgnoreCase(config.getUserType());
+        };
+    }
+
+    @Getter
+    @Setter
+    @Validated
+    public static class Config {
+        @NotNull
+        private String userType;
+    }
+
+}
+```
+
+
+
+```yml
+ Custom=ccc #自定义谓词
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 5.filters（过滤）
+
+#### 配置
+
+```yml
+spring:
+  application:
+    name: cloud-gateway
+  cloud:
+    consul:
+      discovery:
+        serviceName: ${spring.application.name}
+      port: 8500
+      host: localhost
+    gateway:
+      routes:
+        - id: pay_routh2 #路由id,类似与mysql主键没有固定规则但是唯一,一般是服务名
+          uri: http://localhost:8001  #路由地址
+          predicates:
+            - Path=/feign/gateway/pay/getInfo/**  #路径匹配的进行断言
+          filters:
+            - CustomSingle=wong
+            - RedirectTo=302, https://baidu.com  # 将请求重定向到https://baidu.com，使用HTTP状态码302（临时重定向）。
+            - SetPath=/pay/gateway/{segment} # 设置请求路径为/pay/gateway/{segment}
+            - PrefixPath=/pay # 在请求路径前添加前缀/pay。
+            - AddRequestHeader=X-Request-Wong,Wong # 添加一个请求头，名称为X-Request-Wong，值为Wong。
+            - RemoveRequestHeader=sec-fetch-site # 移除请求头sec-fetch-site。
+            - AddResponseHeader=test, wongsilver #添加一个响应头，名称为test，值为wongsilver。
+```
+
+
+
+
+
+#### 自定义全局filter
+
+```java
+@Slf4j
+@Component
+public class CustomGlobalFilter implements GlobalFilter, Ordered {
+
+    public static final String START_VISIT_TIME = "startVisitTime";
+
+    /**
+     * 自定义全局filter
+     * @param exchange
+     * @param chain
+     * @return
+     */
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        // 在请求的属性中存储当前时间戳（访问开始时间）
+        exchange.getAttributes().put(START_VISIT_TIME, System.currentTimeMillis());
+
+        // 继续处理请求，将其传递给过滤器链中的下一个过滤器
+        // 当请求处理完成时，执行Mono.fromRunnable中的任务
+        return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+
+            // 从请求的属性中获取开始访问时间
+            Long startVisitTime = exchange.getAttribute(START_VISIT_TIME);
+            if (startVisitTime != null) {
+                // 获取当前时间戳（访问结束时间）
+                long endVisitTime = System.currentTimeMillis();
+                log.info("=================================================");
+                log.info("访问接口主机: {}", exchange.getRequest().getURI().getHost());
+                log.info("访问接口端口: {}", exchange.getRequest().getURI().getPort());
+                log.info("访问接口URL: {}", exchange.getRequest().getURI().getPath());
+                log.info("访问接口参数: {}", exchange.getRequest().getURI().getRawQuery());
+                log.info("访问接口耗时: {}ms", (endVisitTime - startVisitTime));
+                log.info("=================================================");
+            }
+        }));
+    }
+
+    // 数字越小优先级越高
+    @Override
+    public int getOrder() {
+        return -1;
+    }
+}
+```
+
+
+
+#### 单一filter
+
+> ==========百度搜==========
+
+
+
+
+
+
 
 
 
