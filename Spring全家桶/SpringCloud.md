@@ -338,6 +338,12 @@ public class RestTemplateConfig {
     <artifactId>spring-cloud-starter-consul-config</artifactId>
 </dependency>
 
+<!-- bootstrap -->
+<dependency>
+     <groupId>org.springframework.cloud</groupId>
+     <artifactId>spring-cloud-starter-bootstrap</artifactId>
+</dependency>
+
 <!-- consul 发现与注册 -->
 <dependency>
     <groupId>org.springframework.cloud</groupId>
@@ -353,17 +359,24 @@ public class RestTemplateConfig {
 
 
 
-#### 创建bootstarp.yml
+#### 配置中心命名规则
+
+```yml
+# config/cloud-payment-service/data
+#       /cloud-payment-service-dev/data
+#       /cloud-payment-service-prod/data
+
+【这里是命名规则】
+```
+
+
+
+#### bootstarp.yml配置
 
 ```yml
 spring:
   application:
     name: cloud-payment-service #配置中心会以cloud-payment-service开头进行查找
-    						  #比如配置中心有cloud-payment-service-dev这个配置时
-    						  #application.yml中就能进行以下配置
-    						  
-    						  #profiles:
-    						  # active: dev
   cloud:
     consul:
       discovery:
@@ -378,7 +391,29 @@ spring:
 
 
 
-#### 使用
+
+
+
+
+#### application.yml配置
+
+```yml
+spring:
+  profiles:
+    active: dev 
+```
+
+
+
+
+
+
+
+
+
+
+
+#### 测试
 
 ```java
 //使用el表单式进行注入
@@ -394,6 +429,12 @@ public void Test(@Value("${wang.value}") String value){
 
 
 ### 7.动态刷新
+
+#### 动态刷新介绍
+
+动态刷新功能的核心意思是配置中心的配置会实时更新，应用程序可以在配置发生变化时自动地获取最新的配置而不需要重启。
+
+
 
 #### 方式1：添加注解
 
@@ -421,6 +462,18 @@ config:
   watch:
     wait-time: 1 #一秒刷新一次
 ```
+
+
+
+
+
+### 8.启动命令
+
+进入consul目录下输入：**consul.exe agent -dev**
+
+持久化操作百度搜
+
+
 
 
 
