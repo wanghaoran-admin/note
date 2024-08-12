@@ -28,7 +28,9 @@ Spring Cloud Alibaba 是 Spring Cloud 体系下的一个子项目，专为中国
 
 https://github.com/alibaba/nacos/releases/tag/2.3.0
 
+#### 启动
 
+> startup.cmd -m standalone
 
 
 
@@ -102,7 +104,7 @@ spring:
 
 #### 配置中心命名规则
 
-`[应用名]-[环境名]-[配置类型].[文件扩展名]`
+`[应用名]-[环境名].[文件扩展名]`
 
 
 
@@ -121,7 +123,7 @@ spring:
         file-extension: yaml #用于配置中心后缀【这里一定要和配置中心中的后缀一致】
 ```
 
-【这里也就是说我配置中心中有一个名为nacos-config-dev-yaml的文件】
+【这里也就是说我配置中心中有一个名为nacos-config-dev.yaml的文件】
 
 
 
@@ -156,3 +158,44 @@ public class NacosConfigClientController {
 }
 ```
 
+
+
+
+
+### 5.三元组
+
+#### **命名空间 (Namespace)**
+
+命名空间用于隔离不同环境或项目的配置。你可以为不同的环境创建不同的命名空间。
+
+```yml
+config:
+  server-addr: localhost:8848
+  file-extension: yaml
+  namespace: 命名空间id
+```
+
+
+
+#### **组 (Group)**
+
+组用于对配置进行分类管理。默认的组名为 `DEFAULT_GROUP`，你也可以根据需要自定义组名。
+
+```yml
+config:
+  server-addr: localhost:8848
+  file-extension: yaml
+  group: PROD_GROUP
+```
+
+
+
+#### **数据 ID (Data ID)**
+
+就是根据nacos中**nacos-config-dev.yaml，nacos-config-test.yaml.....**
+
+
+
+#### **学习地址**
+
+https://www.bilibili.com/video/BV1gW421P7RD?p=99&spm_id_from=pageDriver&vd_source=7268b1c733746031a0c523593f1e1f31

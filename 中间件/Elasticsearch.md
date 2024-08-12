@@ -302,6 +302,8 @@ public void searchAll() throws Exception {
      
      
     //-----------------------------------------------------------------
+    
+    //searchSourceBuilder.query(boolQueryBuilder);
     searchRequest.source(searchSourceBuilder);
      
     //执行
