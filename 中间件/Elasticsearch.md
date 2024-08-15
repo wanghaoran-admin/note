@@ -383,6 +383,12 @@ BoolQueryBuilder builder = QueryBuilders.boolQuery().mustNot(QueryBuilders.termQ
 
 
 
+#### 查询count
+
+
+
+
+
 #### 一组值查询
 
 
@@ -427,9 +433,84 @@ myelasticsearch:
 private RestHighLevelClient client;
 ```
 
+【结合入门案例进行编写】
 
 
 
 
 
+### 7.地理位置查询
 
+#### 地理位置类型
+
+Elasticsearch 提供了两种表示地理位置的方式：用纬度－经度表示的坐标点使用 geo_point 字段类型
+
+以 GeoJSON 格式定义的复杂地理形状，使用 geo_shape 字段类型。
+
+
+
+#### geo_shape和geo_point 区别
+
+Geo-points 允许你找到距离另一个坐标点一定范围内的坐标点、计算出两点之间的距离来排序或进行相关性打分、或者聚合到显示在地图上的一个网格。另一方面，Geo-shapes 纯粹是用来过滤的。它们可以用来判断两个地理形状是否有重合或者某个地理形状是否完全包含了其他地理形状。
+
+
+
+#### 创建索引
+
+```json
+PUT /gps
+
+{
+  "mappings": {
+    "restaurant": {
+      "properties": {
+        
+        "location": {
+          "type": "geo_point"
+        }
+      
+      }
+    }
+  }
+}
+```
+
+
+
+
+
+#### 经纬度坐标格式
+
+如上例，location 被声明为 geo_point 后，我们就可以索引包含了经纬度信息的文档了。经纬度信息的形式可以是字符串，数组或者对象。
+
+```json
+PUT /attractions/restaurant/1
+{
+  "name":     "Chipotle Mexican Grill",
+  "location": "40.715, -74.011" <1>
+}
+
+PUT /attractions/restaurant/2
+{
+  "name":     "Pala Pizza",
+  "location": { <2>
+    "lat":     40.722,
+    "lon":    -73.989
+  }
+}
+
+PUT /attractions/restaurant/3
+{
+  "name":     "Mini Munchies Pizza",
+  "location": [ -73.983, 40.719 ] <3>
+}
+
+```
+
+【lat是纬度 ，lon是经度】
+
+> <1> 以半角逗号分割的字符串形式 “lat,lon”；
+
+> <2> 明确以 lat 和 lon 作为属性的对象；
+
+> <3> 数组形式表示 [lon,lat]。
