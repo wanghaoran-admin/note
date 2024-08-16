@@ -443,64 +443,151 @@ public String byResourceHandler(@PathVariable("shu") String shu,BlockException b
 
 
 
-# 第六章 热点规则
+# 第六章 Sentinel热点规则
 
-### 热点总配置
 
-#### 资源名
+
+### 资源名
 
 **testHotKey**: 这是 Sentinel 识别和应用流量控制规则的标识。你需要确保在代码中的 `@SentinelResource` 注解的 `value` 属性和这里的资源名匹配。
 
 
 
-#### **限流模式**
+### **限流模式**
 
 **QPS 模式**: 表示以每秒请求数（Queries Per Second, QPS）作为限流的标准。这是常用的限流模式，适用于高流量的场景。
 
 
 
-#### **参数索引**
+### **参数索引**
 
  指定了热点参数在请求中的索引位置。Sentinel 会基于这个位置的参数值进行限流。例如，如果设置为0，Sentinel 会将第一个参数作为热点参数进行控制。
 
 
 
-#### **单机阈值** 
+### **单机阈值** 
 
 设置在单台机器上的流量控制阈值。例如，如果设置为1，则当单机的请求超过这个阈值时，Sentinel 会触发流量控制。
 
 
 
-#### **统计窗口时长** 
+### **统计窗口时长** 
 
 **1 秒**: 指定了用于计算流量控制的统计窗口的时长。Sentinel 会在这个时间窗口内收集请求数据，并应用流量控制规则。1秒的窗口时长意味着流量控制规则会每秒钟更新一次。
 
 
 
-#### **是否集群** 
+### **是否集群** 
 
 **是否集群**: 如果选择了集群模式，那么流量控制规则会在集群中所有节点上生效。如果不选择集群模式，那么流量控制只会在当前单机上生效。
 
 
 
-#### **参数例外项** 
+### **参数例外项** 
 
 **参数例外项**: 用于指定哪些特定的参数值应当被排除在流量控制之外。例如，如果你想允许某些参数值超出限流阈值而不受限制，可以在这里配置这些例外项。
 
 
 
-#### **参数类型** 
+### **参数类型** 
 
 **java.lang.String**: 指定了热点参数的类型。在这个例子中，参数类型为 `String`，意味着 Sentinel 会将参数视为字符串类型来进行流量控制。
 
 
 
-#### **参数值** 
+### **参数值** 
 
  指定了例外项的参数值。如果设置了例外项参数值 `w`，那么当请求参数值为 `w` 时，该请求将不会受到流量控制的影响。
 
 
 
-#### **限流阈值** 
+### **限流阈值** 
 
 **200**: 设置了流量控制的阈值。例如，如果设置为200，则表示每秒钟最多允许200个请求，如果超过这个阈值，则触发限流策略。
+
+
+
+
+
+
+
+# 第七章 Sentinel整合OpenFeign、gateway
+
+### Sentinel整合OpenFeign
+
+#### 依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+</dependency>
+```
+
+
+
+#### 开启整合
+
+```yml
+#开启对sentinel的整合
+feign:
+  sentinel:
+    enabled: true
+```
+
+【在`consumer`（消费者）模块的yml中添加】
+
+
+
+
+
+#### feign接口编写
+
+```java
+@FeignClient(value = "nacos-pay-provider"
+        , fallback = PayFeignSentinelFallback.class 
+)  //fallback降级类
+public interface PayFeignSentinelApi {
+
+    @GetMapping("/pay/nacos/get/{orderNo}")
+    Result<PayDTO> getPayByOrderNo(@PathVariable("orderNo") String orderNo);
+
+}
+```
+
+
+
+#### 降级处理
+
+```java
+@Component
+public class PayFeignSentinelFallback implements PayFeignSentinelApi {
+    @Override
+    public Result<PayDTO> getPayByOrderNo(String orderNo) {
+        return Result.error(ReturnCodeEnum.RC500.getCode(), "对方服务不可用！！");
+    }
+}
+```
+
+
+
+### Sentinel整合gateway
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
