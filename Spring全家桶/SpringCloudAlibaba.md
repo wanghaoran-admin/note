@@ -577,6 +577,136 @@ public class PayFeignSentinelFallback implements PayFeignSentinelApi {
 
 ### Sentinel整合gateway
 
+#### 依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-gateway</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.alibaba.csp</groupId>
+    <artifactId>sentinel-transport-simple-http</artifactId>
+    <version>1.8.6</version>
+</dependency>
+<dependency>
+    <groupId>com.alibaba.csp</groupId>
+    <artifactId>sentinel-spring-cloud-gateway-adapter</artifactId>
+    <version>1.8.6</version>
+</dependency>
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+</dependency>
+<dependency>
+    <groupId>javax.annotation</groupId>
+    <artifactId>javax.annotation-api</artifactId>
+    <version>1.3.2</version>
+    <scope>compile</scope>
+</dependency>
+```
+
+
+
+
+
+#### yml编写
+
+```yml
+server:
+  port: 9528
+
+spring:
+  application:
+    name: cloud-alibaba-sentinel-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848 # nacos地址
+    gateway:
+      routes:
+        - id: pay_routh1
+          uri: http://localhost:9001 #使用url必须添加http://  还可以使用lb://nacos-pay-provider服务名的方式
+          predicates:
+            - Path=/pay/nacos/get/**  #谓词的配置
+```
+
+
+
+
+
+#### 创建网关配置类
+
+```java
+@Configuration
+public class GatewayConfiguration {
+    private final List<ViewResolver> viewResolvers;
+    private final ServerCodecConfigurer serverCodecConfigurer;
+
+    public GatewayConfiguration(List<ViewResolver> viewResolvers, ServerCodecConfigurer serverCodecConfigurer) {
+        this.viewResolvers = viewResolvers;
+        this.serverCodecConfigurer = serverCodecConfigurer;
+    }
+
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public SentinelGatewayBlockExceptionHandler sentinelGatewayBlockExceptionHandler() {
+        return new SentinelGatewayBlockExceptionHandler(viewResolvers, serverCodecConfigurer);
+    }
+
+    @Bean
+    @Order(-1)
+    public GlobalFilter sentinelGatewayFilter() {
+        return new SentinelGatewayFilter();
+    }
+
+    @PostConstruct
+    public void doInit() {
+        initBlockHandler();
+    }
+
+    private void initBlockHandler() {
+        Set<GatewayFlowRule> rules = new HashSet<>();
+        rules.add(
+                new GatewayFlowRule("pay_routh1") //这里是路由的id是在yml中
+                        .setCount(1) //设置最大访问
+                        .setIntervalSec(1) //设置间隔秒
+        );
+        GatewayRuleManager.loadRules(rules);  //加载
+
+        BlockRequestHandler handler = (serverWebExchange, throwable) -> {
+            HashMap<String, String> map = new HashMap<>();
+
+            map.put("ErrorCode", HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase());
+            map.put("ErrorMessage", "请求过于频繁, 触发了sentinel限流 ... ");
+
+            return ServerResponse.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(BodyInserters.fromValue(map));
+        };
+
+        GatewayCallbackManager.setBlockHandler(handler);
+    }
+}
+```
+
+
+
+#### 测试
+
+发送请求到网关，网关根据
+
+```java
+  new GatewayFlowRule("pay_routh1") //这里是路由的id是在yml中
+                        .setCount(1) //设置最大访问
+                        .setIntervalSec(1) //设置间隔秒
+```
+
+来决定是否放行
 
 
 
@@ -588,6 +718,787 @@ public class PayFeignSentinelFallback implements PayFeignSentinelApi {
 
 
 
+# 第八章 Seata分布式事务
+
+### 1.介绍
+
+Seata是一个开源的分布式事务解决方案，主要用于解决微服务架构中跨服务的数据一致性问题。Seata 提供了高效且易用的分布式事务处理能力，确保在分布式系统中进行的数据操作能够保持一致性。
+
+
+
+
+
+### 2.组成部分
+
+#### TC
+
+事务协调器，管理全局事务的生命周期，负责全局事务的开始、提交、回滚等操作。
+
+#### TM
+
+事务管理器，负责定义全局事务的范围，触发全局事务的开始和提交/回滚
+
+#### RM
+
+资源管理器，负责管理分支事务，参与具体的业务操作，并与 TC 进行通讯来实现分支事务的注册和状态汇报。
+
+
+
+**【其中，TC 为单独部署的 Server 服务端，TM 和 RM 为嵌入到应用中的 Client 客户端。】**
+
+
+
+
+
+### 3.事务模式
+
+#### **AT 模式**
+
+- AT 模式是一种自动化的分布式事务模式，能够自动管理本地数据库事务。Seata 在两阶段提交（2PC）协议的基础上，增强了性能和可用性：
+  - **第一阶段**：在业务执行过程中，RM 会生成一份数据的“镜像”用于后续的回滚，同时提交本地事务并释放数据库锁。
+  - **第二阶段**：TC 根据事务的最终状态（提交或回滚）来决定是否需要回滚前一阶段的操作。
+
+#### **TCC 模式**
+
+- TCC（Try-Confirm-Cancel）模式，要求业务服务提供 Try、Confirm 和 Cancel 三个接口，分别对应预操作、确认操作和取消操作。
+
+#### **SAGA 模式**
+
+- SAGA 模式适合长事务处理，将全局事务拆分为一系列的本地事务，每个本地事务具有对应的补偿机制（回滚操作）。
+
+#### **XA 模式**
+
+- XA 模式遵循标准的 2PC 协议，由数据库本身支持 XA 事务管理，适用于需要严格强一致性的场景。
+
+
+
+
+
+### 4.项目实战
+
+#### 添加依赖
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+    </dependency>
+    <!-- 引入自定义api通用库-->
+    <dependency>
+        <groupId>org.example</groupId>
+        <artifactId>cloud-commons</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </dependency>
+
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.alibaba</groupId>
+        <artifactId>druid-spring-boot-starter</artifactId>
+    </dependency>
+    <!-- http://localhost:8001/swagger-ui/index.html -->
+    <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.mybatis.spring.boot</groupId>
+        <artifactId>mybatis-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>javax.persistence</groupId>
+        <artifactId>persistence-api</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>tk.mybatis</groupId>
+        <artifactId>mapper</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>cn.hutool</groupId>
+        <artifactId>hutool-all</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.alibaba.fastjson2</groupId>
+        <artifactId>fastjson2</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <scope>provided</scope>
+        <version>1.18.30</version>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+
+
+    <dependency>
+        <groupId>com.baomidou</groupId>
+        <artifactId>mybatis-plus-boot-starter</artifactId>
+        <version>3.5.4.1</version>
+    </dependency>
+    <dependency>
+        <groupId>org.mybatis</groupId>
+        <artifactId>mybatis-spring</artifactId>
+        <version>3.0.3</version>
+    </dependency>
+</dependencies>
+```
+
+
+
+#### 编写数据库
+
+##### seata 数据库
+
+```sql
+/*
+ Navicat Premium Data Transfer
+
+ Source Server         : mysql
+ Source Server Type    : MySQL
+ Source Server Version : 80028 (8.0.28)
+ Source Host           : localhost:3306
+ Source Schema         : seata
+
+ Target Server Type    : MySQL
+ Target Server Version : 80028 (8.0.28)
+ File Encoding         : 65001
+
+ Date: 18/08/2024 22:32:47
+*/
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for branch_table
+-- ----------------------------
+DROP TABLE IF EXISTS `branch_table`;
+CREATE TABLE `branch_table`  (
+  `branch_id` bigint NOT NULL,
+  `xid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `transaction_id` bigint NULL DEFAULT NULL,
+  `resource_group_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `resource_id` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `branch_type` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `status` tinyint NULL DEFAULT NULL,
+  `client_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `application_data` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `gmt_create` datetime(6) NULL DEFAULT NULL,
+  `gmt_modified` datetime(6) NULL DEFAULT NULL,
+  PRIMARY KEY (`branch_id`) USING BTREE,
+  INDEX `idx_xid`(`xid` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of branch_table
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for distributed_lock
+-- ----------------------------
+DROP TABLE IF EXISTS `distributed_lock`;
+CREATE TABLE `distributed_lock`  (
+  `lock_key` char(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `lock_value` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `expire` bigint NULL DEFAULT NULL,
+  PRIMARY KEY (`lock_key`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of distributed_lock
+-- ----------------------------
+INSERT INTO `distributed_lock` VALUES ('AsyncCommitting', ' ', 0);
+INSERT INTO `distributed_lock` VALUES ('RetryCommitting', ' ', 0);
+INSERT INTO `distributed_lock` VALUES ('RetryRollbacking', ' ', 0);
+INSERT INTO `distributed_lock` VALUES ('TxTimeoutCheck', ' ', 0);
+
+-- ----------------------------
+-- Table structure for global_table
+-- ----------------------------
+DROP TABLE IF EXISTS `global_table`;
+CREATE TABLE `global_table`  (
+  `xid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `transaction_id` bigint NULL DEFAULT NULL,
+  `status` tinyint NOT NULL,
+  `application_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `transaction_service_group` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `transaction_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `timeout` int NULL DEFAULT NULL,
+  `begin_time` bigint NULL DEFAULT NULL,
+  `application_data` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `gmt_create` datetime NULL DEFAULT NULL,
+  `gmt_modified` datetime NULL DEFAULT NULL,
+  PRIMARY KEY (`xid`) USING BTREE,
+  INDEX `idx_status_gmt_modified`(`status` ASC, `gmt_modified` ASC) USING BTREE,
+  INDEX `idx_transaction_id`(`transaction_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of global_table
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for lock_table
+-- ----------------------------
+DROP TABLE IF EXISTS `lock_table`;
+CREATE TABLE `lock_table`  (
+  `row_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `xid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `transaction_id` bigint NULL DEFAULT NULL,
+  `branch_id` bigint NOT NULL,
+  `resource_id` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `table_name` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `pk` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT 0 COMMENT '0:locked ,1:rollbacking',
+  `gmt_create` datetime NULL DEFAULT NULL,
+  `gmt_modified` datetime NULL DEFAULT NULL,
+  PRIMARY KEY (`row_key`) USING BTREE,
+  INDEX `idx_status`(`status` ASC) USING BTREE,
+  INDEX `idx_branch_id`(`branch_id` ASC) USING BTREE,
+  INDEX `idx_xid`(`xid` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of lock_table
+-- ----------------------------
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+```
+
+
+
+
+
+##### seata_account 账户数据库
+
+```sql
+/*
+ Navicat Premium Data Transfer
+
+ Source Server         : mysql
+ Source Server Type    : MySQL
+ Source Server Version : 80028 (8.0.28)
+ Source Host           : localhost:3306
+ Source Schema         : seata_account
+
+ Target Server Type    : MySQL
+ Target Server Version : 80028 (8.0.28)
+ File Encoding         : 65001
+
+ Date: 18/08/2024 22:33:09
+*/
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for t_account
+-- ----------------------------
+DROP TABLE IF EXISTS `t_account`;
+CREATE TABLE `t_account`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `user_id` bigint NULL DEFAULT NULL COMMENT '用户id',
+  `total` decimal(10, 0) NULL DEFAULT NULL COMMENT '总额度',
+  `used` decimal(10, 0) NULL DEFAULT NULL COMMENT '已用账户余额',
+  `residue` decimal(10, 0) NULL DEFAULT NULL COMMENT '剩余可用额度',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of t_account
+-- ----------------------------
+INSERT INTO `t_account` VALUES (1, 1, 1000, 0, 1000);
+
+-- ----------------------------
+-- Table structure for undo_log
+-- ----------------------------
+DROP TABLE IF EXISTS `undo_log`;
+CREATE TABLE `undo_log`  (
+  `branch_id` bigint NOT NULL COMMENT 'branch transaction id',
+  `xid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'global transaction id',
+  `context` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'undo_log context,such as serialization',
+  `rollback_info` longblob NOT NULL COMMENT 'rollback info',
+  `log_status` int NOT NULL COMMENT '0:normal status,1:defense status',
+  `log_created` datetime(6) NOT NULL COMMENT 'create datetime',
+  `log_modified` datetime(6) NOT NULL COMMENT 'modify datetime',
+  UNIQUE INDEX `ux_undo_log`(`xid` ASC, `branch_id` ASC) USING BTREE,
+  INDEX `ix_log_created`(`log_created` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'AT transaction mode undo table' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of undo_log
+-- ----------------------------
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+```
+
+
+
+##### seata_order 订单数据库
+
+```sql
+/*
+ Navicat Premium Data Transfer
+
+ Source Server         : mysql
+ Source Server Type    : MySQL
+ Source Server Version : 80028 (8.0.28)
+ Source Host           : localhost:3306
+ Source Schema         : seata_order
+
+ Target Server Type    : MySQL
+ Target Server Version : 80028 (8.0.28)
+ File Encoding         : 65001
+
+ Date: 18/08/2024 22:33:14
+*/
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for t_order
+-- ----------------------------
+DROP TABLE IF EXISTS `t_order`;
+CREATE TABLE `t_order`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NULL DEFAULT NULL,
+  `product_id` bigint NULL DEFAULT NULL,
+  `count` int NULL DEFAULT NULL,
+  `moeny` int NULL DEFAULT NULL,
+  `status` int NULL DEFAULT NULL COMMENT '订单状态：0创建中：1已完结',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of t_order
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for undo_log
+-- ----------------------------
+DROP TABLE IF EXISTS `undo_log`;
+CREATE TABLE `undo_log`  (
+  `branch_id` bigint NOT NULL COMMENT 'branch transaction id',
+  `xid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'global transaction id',
+  `context` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'undo_log context,such as serialization',
+  `rollback_info` longblob NOT NULL COMMENT 'rollback info',
+  `log_status` int NOT NULL COMMENT '0:normal status,1:defense status',
+  `log_created` datetime(6) NOT NULL COMMENT 'create datetime',
+  `log_modified` datetime(6) NOT NULL COMMENT 'modify datetime',
+  UNIQUE INDEX `ux_undo_log`(`xid` ASC, `branch_id` ASC) USING BTREE,
+  INDEX `ix_log_created`(`log_created` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'AT transaction mode undo table' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of undo_log
+-- ----------------------------
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+```
+
+
+
+
+
+
+
+##### seata_storage 库存数据库
+
+```sql
+/*
+ Navicat Premium Data Transfer
+
+ Source Server         : mysql
+ Source Server Type    : MySQL
+ Source Server Version : 80028 (8.0.28)
+ Source Host           : localhost:3306
+ Source Schema         : seata_storage
+
+ Target Server Type    : MySQL
+ Target Server Version : 80028 (8.0.28)
+ File Encoding         : 65001
+
+ Date: 18/08/2024 22:33:20
+*/
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for t_storage
+-- ----------------------------
+DROP TABLE IF EXISTS `t_storage`;
+CREATE TABLE `t_storage`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `product_id` bigint NULL DEFAULT NULL COMMENT '产品id',
+  `total` decimal(10, 0) NULL DEFAULT NULL COMMENT '总库存',
+  `used` decimal(10, 0) NULL DEFAULT NULL COMMENT '已用库存',
+  `residue` decimal(10, 0) NULL DEFAULT NULL COMMENT '剩余库存',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of t_storage
+-- ----------------------------
+INSERT INTO `t_storage` VALUES (1, 1, 100, 0, 100);
+
+-- ----------------------------
+-- Table structure for undo_log
+-- ----------------------------
+DROP TABLE IF EXISTS `undo_log`;
+CREATE TABLE `undo_log`  (
+  `branch_id` bigint NOT NULL COMMENT 'branch transaction id',
+  `xid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'global transaction id',
+  `context` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'undo_log context,such as serialization',
+  `rollback_info` longblob NOT NULL COMMENT 'rollback info',
+  `log_status` int NOT NULL COMMENT '0:normal status,1:defense status',
+  `log_created` datetime(6) NOT NULL COMMENT 'create datetime',
+  `log_modified` datetime(6) NOT NULL COMMENT 'modify datetime',
+  UNIQUE INDEX `ux_undo_log`(`xid` ASC, `branch_id` ASC) USING BTREE,
+  INDEX `ix_log_created`(`log_created` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'AT transaction mode undo table' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of undo_log
+-- ----------------------------
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+```
+
+
+
+
+
+#### 修改seata/conf的application.yml
+
+```yml
+#  Copyright 1999-2019 Seata.io Group.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+server:
+  port: 7091
+
+spring:
+  application:
+    name: seata-server
+
+logging:
+  config: classpath:logback-spring.xml
+  file:
+    path: ${log.home:${user.home}/logs/seata}
+  extend:
+    logstash-appender:
+      destination: 127.0.0.1:4560
+    kafka-appender:
+      bootstrap-servers: 127.0.0.1:9092
+      topic: logback_to_logstash
+
+console:
+  user:
+    username: seata
+    password: seata
+seata:
+  config:
+    # support: nacos, consul, apollo, zk, etcd3
+    type: nacos
+    nacos:
+      server-addr: 127.0.0.1:8848
+      namespace: public
+      group: DEFAULT_GROUP
+      username: nacos
+      password: nacos
+  registry:
+    # support: nacos, eureka, redis, zk, consul, etcd3, sofa
+    type: nacos
+    nacos:
+      application: seata-server
+      server-addr: 127.0.0.1:8848
+      group: DEFAULT_GROUP
+      namespace: public
+      cluster: default
+      username: nacos
+      password: nacos
+  store:
+    # support: file 、 db 、 redis 、 raft
+    mode: db
+    db:
+      datasource: druid
+      db-type: mysql
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/seata?serverTimezone=Asia/Shanghai&useSSL=false
+      user: root
+      password: ok
+      min-conn: 10
+      max-conn: 100
+      global-table: global_table
+      branch-table: branch_table
+      lock-table: lock_table
+      distributed-lock-table: distributed_lock
+      query-limit: 1000
+      max-wait: 5000
+
+
+
+
+  security:
+    secretKey: SeataSecretKey0c382ef121d778043159209298fd40bf3850a017
+    tokenValidityInMilliseconds: 1800000
+    ignore:
+      urls: /,/**/*.css,/**/*.js,/**/*.html,/**/*.map,/**/*.svg,/**/*.png,/**/*.jpeg,/**/*.ico,/api/v1/auth/login,/metadata/v1/**
+
+```
+
+
+
+
+
+#### 编写yml文件
+
+```yml
+server:
+  port: 2003
+
+spring:
+  application:
+    name: seata-account-service
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seata_account?characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true
+    username: root
+    password: ok
+
+seata:
+  registry:
+    type: nacos
+    nacos:
+      server-addr: localhost:8848
+      namespace: ""
+      group: DEFAULT_GROUP
+      application: seata-server
+  tx-service-group: default_tx_group #这里是组的id用于标识和管理分布式事务的全局事务组。 
+  service:
+    vgroup-mapping:
+      default_tx_group: default #默认default
+  data-source-proxy-mode: AT
+
+logging:
+  level:
+    io:
+      seata: info
+
+```
+
+
+
+
+
+#### 编写业务
+
+##### 订单业务
+
+```java
+/**
+ * <p>
+ *  服务实现类
+ * </p>
+ *
+ * @author author
+ * @since 2024-08-18
+ */
+@Service
+@Slf4j
+public class TOrderServiceImpl extends ServiceImpl<TOrderMapper, TOrder> implements ITOrderService {
+
+    @Resource
+    private TOrderMapper orderMapper;
+    @Resource
+    private StorageFeignApi storageFeignApi;
+    @Resource
+    private AccountFeignApi accountFeignApi;
+
+    @Override
+    public void create(TOrder order) {
+        // xid全局事务检查
+        String xid = RootContext.getXID();
+
+        // 1. 新建订单
+        log.info("-------------> 开始新建订单, XID: {}", xid);
+        order.setStatus(0);
+        int result = orderMapper.insert(order);
+
+        TOrder orderFromDB;
+        if (result > 0) {
+
+            System.out.println(order.getId());
+            orderFromDB = orderMapper.selectById(order.getId());
+            log.info("-------------> 新建订单成功, OrderInfo: {}", orderFromDB);
+
+            // 2. 扣减库存
+            log.info("-------------> 开始扣减库存");
+            storageFeignApi.decrease(orderFromDB.getProductId(), orderFromDB.getCount());
+            log.info("-------------> 扣减库存成功");
+
+            // 3. 扣减账户余额
+            log.info("-------------> 开始扣减余额");
+            accountFeignApi.decrease(order.getUserId(), Long.valueOf(order.getMoeny()));
+            log.info("-------------> 扣余额存成功");
+
+            // 4. 修改订单状态
+            log.info("-------------> 开始修改订单状态");
+            order.setId(orderFromDB.getId());
+            order.setStatus(1);
+            int i = orderMapper.updateById(order);
+            log.info("-------------> 修改订单状态成功");
+
+        }
+        log.info("-------------> 结束新建订单, XID: {}", xid);
+    }
+}
+```
+
+
+
+##### 账户业务
+
+```java
+/**
+ * <p>
+ *  服务实现类
+ * </p>
+ *
+ * @author author
+ * @since 2024-08-18
+ */
+@Slf4j
+@Service
+public class TAccountServiceImpl extends ServiceImpl<TAccountMapper, TAccount> implements ITAccountService {
+
+    @Resource
+    private TAccountMapper accountMapper;
+
+    @Override
+    public void decrease(Long userId, Long money) {
+        log.info("------------->AccountService 开始扣减余额");
+        accountMapper.decrease(userId, money);
+        log.info("------------->AccountService 开始扣减余额");
+
+
+        // 超时异常
+         timeout();
+        // 抛出异常
+//         int i = 10 / 0;
+    }
+
+    private void timeout() {
+        try {
+            TimeUnit.SECONDS.sleep(65);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+```
+
+
+
+##### 库存业务
+
+```java
+/**
+ * <p>
+ *  服务实现类
+ * </p>
+ *
+ * @author author
+ * @since 2024-08-18
+ */
+@Slf4j
+@Service
+public class TAccountServiceImpl extends ServiceImpl<TAccountMapper, TAccount> implements ITAccountService {
+
+    @Resource
+    private TAccountMapper accountMapper;
+
+    @Override
+    public void decrease(Long userId, Long money) {
+        log.info("------------->AccountService 开始扣减余额");
+        accountMapper.decrease(userId, money);
+        log.info("------------->AccountService 开始扣减余额");
+
+
+        // 超时异常
+         timeout();
+        // 抛出异常
+//         int i = 10 / 0;
+    }
+
+    private void timeout() {
+        try {
+            TimeUnit.SECONDS.sleep(65);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+```
+
+
+
+#### 测试·总结
+
+【控制器直接调用 ，OpenFeign也一样】
+
+【通过添加订单进行分布式事务的测试】
 
 
 
