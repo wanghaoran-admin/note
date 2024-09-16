@@ -1,330 +1,280 @@
-# 第一章 redis基本概念
+## 一、Redis 基础概念
 
-### 1.相关概念
+### 1. 什么是 Redis
 
-Redis是一个开源的内存数据库，它通常被用作缓存、消息队列或者数据存储。它支持多种数据结构，包括字符串、哈希表、列表、集合、有序集合等。
+Redis（Remote Dictionary Server）是一个开源的键值对存储数据库，数据保存在内存中，具有极高的读写性能，并提供持久化机制，将数据异步保存到硬盘。Redis 支持丰富的数据类型、持久化、主从复制、发布订阅、Lua 脚本等功能。
 
 
 
-### 2.环境搭建
+### 2. Redis 常用场景
 
-redis通常可以在linux和window等多种操作系统上使用，本章主要以windows系统环境进行讲解
+- **缓存**：存储经常访问的热点数据，减少数据库访问压力。
+- **分布式锁**：使用 Redis 的原子性操作保证锁的独占访问。
+- **计数器**：用于各种计数场景，如浏览量统计、点赞等。
+- **队列系统**：基于 Redis 的列表（List）实现生产者/消费者模型。
+- **会话存储**：存储用户的会话数据，适用于分布式系统。
 
+------
 
 
-1.下载redis
 
-2.启动服务
 
-```java
-redis-server.exe redis.windows.conf
-```
 
-携带windows的配置文件
 
-【注意：服务器界面不能退出删除】
 
+## 二、Redis 数据结构
 
+### 1. **字符串（String）**
 
-3.启动客户端
+Redis 的字符串类型是最基本的数据类型，可以存储字符串、整数、浮点数，单个键最大可存储 512MB 的值。
 
-```
-redis-cli.exe
-```
+- 常用命令：
+  - `SET key value`：设置键值
+  - `GET key`：获取键值
+  - `INCR key`：将键值加 1，适用于计数场景
+  - `APPEND key value`：在键值末尾追加内容
 
 
 
-4.进行授权
 
-```
-auth password
-```
 
-ok是在配置文件中提前设置好的密码【requirepass ok】
+### 2. **哈希（Hash）**
 
+哈希是一种键值对集合，适合存储对象，如用户信息。
 
+- 常用命令：
+  - `HSET key field value`：设置哈希表中的字段值
+  - `HGET key field`：获取哈希表中的字段值
+  - `HGETALL key`：获取哈希表的所有字段和值
 
-# 第二章 数据类型以及对应指令
 
-### 1.string 类型
 
-string类型是redis中最常见的数据类型，有如下指令
 
-```java
-set name wang //设置值
-get name	//取值
-ket * //查看匹配的key[*:全部]
-exists name //判断是否存在【有1,无0】
-append name word //进行追加
-strlen name //获取长度    
-incr num //给数值num做+1操作
-incrby num 10 //给数值num做+操作，步长为10,一次加量为10     
-decr num //给数值num做-1操作
-decrby num 10 //给数值num做-操作，步减为10,一次减量为10      
-getrange name 2 4 //截取字符串
-setrange name 1 xxx //替换内容 1是从哪里开始
-setex tel 10 14444444441111 //set+expire的作用【给tel设置10秒有效期，值为14444444441111，10秒后get查询为null】
-setnx mykey redis //set存入前先进行mykey的判断，没有就存入redis这个值，有返回0，不进行存入值     
-mset name wang age 18 //批量设置key
-mget name age //批量获取key
-msetnx address xuzhou email wang@qq.com //批量进行设置
-getset db redis //先get取值,在set赋值，如果是第一次调用，返回nil
-del db mykey //删除key
-```
 
+### 3. **列表（List）**
 
+列表是一组按顺序排列的字符串，适合做消息队列。
 
-### 2.hash类型
+- 常用命令：
+  - `LPUSH key value`：从左侧插入元素
+  - `RPUSH key value`：从右侧插入元素
+  - `LPOP key`：从左侧弹出元素
+  - `RPOP key`：从右侧弹出元素
+  - `LRANGE key start end`：获取指定范围的列表元素
 
-hash类似于java中的map , 由key-fieId-value构成，通过我们也称为大key 小key，一个大key下可以设置多个小key
 
-```java
-hset myhash name wang //给名为myhash的大key中添加小key name 值为wang
-hget myhash name //根据大key+小key结合的方式，取出值zhangsan
-hmset myhash name lisi age 18 //多组添加【小key+值】
-hgetall myhash //查询这个大key中所有的【小key+值】
-hdel myhash address //删除大key中     
-hexists myhash name //判断大key中，小key是否存在
-hkeys myhash //查询大key中所有的key
-hvals myhash //查询大key中所有的value
-hincrby myhash ahe 1 //对小key的值进行添加操作【注：这个小key值是数值型的，跟的值为负值，即减少操作】
-hsetnx myhash name lisi //在大可以中增加一组小key之前进行判断，如果有了这个小key,就无法增加     
-```
 
 
 
+### 4. **集合（Set）**
 
+集合是无序的元素集合，集合中的元素是唯一的。
 
-### 3.list 类型
+- 常用命令：
+  - `SADD key value`：向集合中添加元素
+  - `SREM key value`：从集合中删除元素
+  - `SMEMBERS key`：获取集合的所有元素
+  - `SISMEMBER key value`：检查元素是否在集合中
 
-list列表【链表】类型，类似于java中arraylist,可重复的
 
-```java
-lpush mylist one //从原值的左边进行新值插入
-rpush mylist two //从原值的右边进行新值插入
-lrange mylist 0 -1 //查询所有的内容
-lpop list //从左边开始移出一个值
-rpop list //从右边开始移出一个值
-lindex list 1 //取出对应下标的值，没有数据返回nil
-lrem list 3 aa //移出3个aa值
-ltrim list 0 -1 //截取该下标的数据 区间内没有数据集合为空
-rpoplpush list list2 //从集合右边取出数据并插入list2的最左边  
-lset mylist 0 good //对指定下标进行修改操作
-linsert mylist before a1 good //在mylist集合中a1 key之前插入新数据 没有返回-1
-linsert mylist after a1 good //在mylist集合中a1 key之后插入新数据 没有返回-1
-```
 
 
 
+### 5. **有序集合（Sorted Set）**
 
+有序集合类似于集合，但每个元素关联一个得分（score），通过得分排序。
 
+- 常用命令：
+  - `ZADD key score value`：向有序集合中添加元素并设置分数
+  - `ZRANGE key start end`：按照分数从小到大获取元素
+  - `ZREVRANGE key start end`：按照分数从大到小获取元素
+  - `ZSCORE key value`：获取指定元素的分数
 
+------
 
-### 4.set 类型
 
-set集合类型，类似于java中的set，值不能重复
 
-```java
-sadd myset "hello"  //set集合中添加元素 重复会覆盖掉
-smembers myset //查看指定set的所有数据
-sismember myset "hello" //判断某一个值是否在set集合中
-scard myset  //获取set集合中的个数
-srem myset "hello" //移除set集合中的指定元素
-srandmember myset //随机抽选出一个元素
-srandmember myset 2 //随机抽选指个数元素
-spop myset //一些set集合中的元素
-smove myset myset2 "jiabin" //将一个指定的值，移动到另外一个set集合中！   
-sinter key1 key2 //交集共同好友就可以实现
-sunion key1 key2 //并集 获取key1 key2的公共值
-sdiff key1 key2  //差集补集 获取公共值以外的key1剩余值，顺序不同结果也会发送改变
-```
 
 
 
 
+## 三、Redis 持久化
 
-### 5.zset 类型
+Redis 提供两种持久化方式，将内存中的数据保存到硬盘，避免数据丢失：
 
-zset可以看成是对set的进阶，可以进行有序排序，在每个值之前加入一个分数值【score】
+### 1. **RDB（Redis Database）**
 
-```java
-zadd myzset 1 one 2 two 3 three //存入数据并且给没个值匹配了一个分数值
-zrange myzset 0 -1 //查询所有
-zrangebyscore myzset -inf +inf //显示用户 从小到大 也可以写具体分值区间【200,300】
-zrangebyscore myzset -inf +inf withscores //显示全部用户并且携带分数值
-zrangebyscore myzset -inf 3500 withscores //显示工资小于3500的并且升序
-zrem myzset xiaohong //移除有序集合中的指定元素
-zcount myzset 1 2 //获取对应区间的数量
-zcard myzset //获取集合中的数量
-```
+RDB 是将数据在特定间隔内生成快照保存到硬盘中。适合不太频繁的数据保存，恢复速度较快。
 
+- 配置参数：
+  - `save 900 1`：在 900 秒内如果有 1 次写操作，则进行 RDB 持久化。
+  - `save 300 10`：在 300 秒内如果有 10 次写操作，则进行 RDB 持久化。
 
+### 2. **AOF（Append-Only File）**
 
+AOF 通过记录每个写操作的日志将数据持久化，可以更频繁地同步数据，可靠性更高。日志文件会随着写操作增多而变大。
 
+- 配置参数：
+  - `appendonly yes`：开启 AOF 持久化。
+  - `appendfsync always`：每次写操作都同步到 AOF 文件，安全但性能差。
+  - `appendfsync everysec`：每秒同步一次（推荐）。
 
-# 第三章 事务
+------
 
-### 1.正常执行事务
 
-```java
-MULTI //开启事务
-set k1 v1 //存放数据
-set k2 v2
-exec //执行事务
-```
 
 
 
-### 2.放弃事务
+## 四、Redis 事务
 
-```java
-MULTI //开启事务
-set k1 v1 //存放数据
-set k2 v2
-DISCARD //取消事务
-get k2 //事务队列中的命令都不会执行
-(nil)
-```
+Redis 事务保证一组命令的顺序执行，但它不保证所有命令的原子性。
 
+- **MULTI**：开启事务
+- **EXEC**：执行事务
+- **DISCARD**：取消事务
+- **WATCH key**：监听一个或多个键，避免并发冲突
 
+------
 
 
 
 
 
-# 第四章 jedis操作
 
-### 1.使用
 
-开启redis服务器
+## 五、Redis 主从复制
 
-在java环境下引入依赖
+Redis 支持主从复制功能，主节点负责写入操作，从节点负责同步主节点的数据，提供读操作的扩展能力。
 
-```xml
-<dependency>
-   <groupId>redis.clients</groupId>
-   <artifactId>jedis</artifactId>
-</dependency>
-```
+- 主从复制命令
+  - `SLAVEOF host port`：从节点执行该命令，指定主节点地址和端口。
+  - **自动同步**：当主节点数据更新时，从节点会自动同步。
 
+主从复制可以用于提高系统的读写性能、实现高可用性。
 
+------
 
 
 
 
 
-在java环境下获取连接
 
-```java
-Jedis jedis = new Jedis("localhost",6379);
-jedis.auth("ok");
-jedis.close();
-```
 
 
 
-```java
-//使用jedis.【命令】的方式来进行操作 
-//示例：
-String ping = jedis.ping(); //测试连接
-jedis.set("name","王浩然"); //设置string类型数值
-jedis.lpush("color","红","橙","黄","绿","青"); //设置集合
-jedis.lrange("color",0,-1).forEach(System.out::println); //获取并输出
-jedis.sadd("names","张三","李四","lili"); //设置set集合
+## 六、Redis 集群
 
-//设置zset
-jedis.zadd("scores",1,"one");
-jedis.zadd("scores",3,"22323");
-jedis.zadd("scores",4,"444");
-jedis.zadd("scores",2,"646");
+当单机 Redis 无法满足业务需求时，可以采用 Redis 集群，分布式存储数据，提高系统的扩展性和可用性。
 
-//分值区间查询
-jedis.zrangeByScore("scores",1,3).forEach(System.out::println);
+- Redis 集群通过**分片**存储数据，将不同键值分配到不同节点。
+- Redis 集群通过 Gossip 协议管理集群中的节点信息，并通过 **hash slot** 机制分配数据。
 
-//携带分值区间查询
-jedis.zrangeByScoreWithScores("scores",1,3).forEach(System.out::println);
+------
 
-//设置hash
-Map map= new HashMap();
-map.put("name","wang");
-map.put("age","13");
-map.put("address","xhuzhou");
-jedis.hmset("stu",map);
 
-//查询这个大key中所有的【小key+值】
-Map<String, String> stu = jedis.hgetAll("stu");
-System.out.println(stu.toString());
-```
 
 
 
 
 
-### 2.工具类
 
-```java
-package com.example.demo3.utils;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
+## 七、Redis 常见应用场景
 
-public class JedisUtil {
-    private static JedisPoolConfig config;
-    private static JedisPool pool;
+### 1. **缓存**
 
-    static {
-        config = new JedisPoolConfig();
-        config.setMaxTotal(30);
-        config.setMaxIdle(2);
-        pool = new JedisPool(config, "127.0.0.1", 6379 , 60, "ok");
-    }
+Redis 最常用的场景就是缓存，它可以缓存数据库的查询结果，减少数据库的压力。常见策略包括：
 
-    public static Jedis getJedis() {
-        return pool.getResource();
-    }
+- **LRU（Least Recently Used）**：最近最少使用策略，当内存不足时，清理最不常使用的数据。
+- **TTL（Time to Live）**：为缓存数据设置过期时间，避免缓存雪崩。
 
-    public static void closeJedis(Jedis j) {
-        j.close();
-    }
-}
+### 2. **分布式锁**
+
+Redis 的 `SETNX` 和 `EXPIRE` 命令可以实现分布式锁，保证不同节点之间的资源独占性。
 
 ```
+redis
 
 
-
-### 3.存取数据
-
-```java
-Jedis jedis = JedisUtil.getJedis();
-   if (jedis.exists("list")) {
-      System.out.println("从redis中取数据");
-      String s = jedis.get("list");
-      List<Faqs> faqs = JSON.parseArray(s, Faqs.class);
-      return new Result(faqs,200,"获取成功！");
-   }else{
-      System.out.println("从数据库中取数据");
-      List<Classes> list = classesService.list();
-      jedis.setex("list",30,JSON.toJSONString(list));
-      return new Result(list,200,"获取成功！");
-   }
+复制代码
+SET lock_key my_value NX EX 10  # 设置 10 秒超时的分布式锁
 ```
 
+### 3. **消息队列**
+
+通过 Redis 的列表类型（List）实现简单的消息队列，生产者使用 `LPUSH` 插入消息，消费者使用 `RPOP` 消费消息。
+
+### 4. **限流**
+
+Redis 可以通过计数器实现限流，配合 `INCR` 和 `EXPIRE` 控制特定时间窗口内的请求次数，防止接口被刷爆。
+
+------
 
 
 
 
-### 4.综合应用
-
-通常我们把数据库中不常更新的表进行mysql+redis的组合查询，比如商品类型，年级信息，产地信息
 
 
 
 
 
+## 八、Redis 性能优化
+
+### 1. **合理设置过期时间**
+
+对于缓存数据，应设置合理的过期时间，避免缓存长期占用内存。
+
+### 2. **使用批量操作**
+
+Redis 支持管道（Pipeline）技术，可以批量发送多个命令，减少网络往返次数。
+
+### 3. **避免大键**
+
+Redis 中的键值对应尽量保持轻量级，避免存储过大的数据，以防增加内存和网络负担。
+
+### 4. **主从分离**
+
+通过将读写操作分离，主节点负责写操作，从节点负责读操作，提高整体吞吐量。
+
+------
 
 
 
 
 
 
+
+
+
+## 九、Redis 常见问题与解决方案
+
+### 1. **Redis 数据丢失**
+
+可能原因：
+
+- 没有开启持久化机制（RDB 或 AOF）。
+- AOF 日志未及时同步。
+
+解决方案：
+
+- 开启 AOF，并配置 `appendfsync everysec`，保证每秒同步数据到磁盘。
+
+### 2. **Redis 阻塞**
+
+可能原因：
+
+- 执行了复杂的查询或大数据量的操作，如 `KEYS`、`FLUSHALL`。
+
+解决方案：
+
+- 避免使用阻塞操作，使用 `SCAN` 代替 `KEYS`。
+
+### 3. **内存不足**
+
+可能原因：
+
+- Redis 内存配置过小或数据量过大。
+
+解决方案：
+
+- 合理设置 `maxmemory` 限制，并配置淘汰策略如 `allkeys-lru`。

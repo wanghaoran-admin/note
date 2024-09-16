@@ -908,11 +908,114 @@ pinia是vue的专属管理库，他允许你跨组件或页面共享状态
 
 
 
+### 2.使用
+
+定义pinia
+
+```js
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+
+export const useCounterStore = defineStore('counter', () => {
+  //定义属性
+  const isCollapse = ref(false)
+
+  //定义方法
+  function setCollapse(value) {
+    isCollapse.value = value
+  }
+    
+  //一定要返回出去
+  return { isCollapse,setCollapse }
+})
+```
+
+
+
+使用pinia
+
+```js
+import { useCounterStore } from '@/stores/counter'
+const counter = useCounterStore()
+
+// 使用 computed 确保 isCollapse 是响应式的
+const isCollapse = computed(() => counter.isCollapse)
+```
 
 
 
 
-# 第10章 qs的使用
+
+
+
+# 第十章 函数的使用
+
+### 1.computed函数
+
+`computed` 是 Vue 3 提供的一个功能，当依赖的数据发生变化时，计算属性会重新计算。它们可以提高性能，并让你以声明式的方式处理数据。
+
+```js
+import { computed, ref } from 'vue';
+
+const count = ref(10);
+const doubledCount = computed(() => count.value * 2);
+```
+
+在这个例子中：
+
+- `count` 是一个响应式数据。
+- `doubledCount` 是一个计算属性，它的值是 `count` 值的两倍。`doubledCount` 会自动更新，当 `count` 改变时，它的值会重新计算。
+
+
+
+
+
+### 2.watch函数
+
+监视单一数据源
+
+```js
+import { ref, watch } from 'vue';
+
+const count = ref(0);
+
+watch(count, (newValue, oldValue) => {
+  console.log(`count changed from ${oldValue} to ${newValue}`);
+});
+```
+
+在这个例子中：
+
+- `count` 是一个响应式数据。
+- `watch` 侦听 `count` 的变化。
+- 当 `count` 发生变化时，回调函数会被调用，`newValue` 和 `oldValue` 分别是变化后的值和变化前的值。
+
+
+
+监视多个数据源
+
+```js
+import { ref, watch } from 'vue';
+
+const count = ref(0);
+const name = ref('Alice');
+
+watch([count, name], ([newCount, newName], [oldCount, oldName]) => {
+  console.log(`count changed from ${oldCount} to ${newCount}`);
+  console.log(`name changed from ${oldName} to ${newName}`);
+});
+
+```
+
+在这个例子中：
+
+- `watch` 侦听 `count` 和 `name` 两个响应式数据。
+- 回调函数会在其中任意一个数据源发生变化时被调用。
+- 
+
+
+
+# 第章 qs的使用
 
 qs就是把js对象装换为post请求数据的一个工具
 
